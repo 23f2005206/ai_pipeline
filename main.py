@@ -1,12 +1,21 @@
 from flask import Flask, request, jsonify
 import requests, sqlite3, os
 from datetime import datetime
-from dotenv import load_dotenv
 import google.generativeai as genai
 
-load_dotenv()
 app = Flask(__name__)
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))  # Railway Variable
+
+# DB setup function (runs once)
+def init_db():
+    conn = sqlite3.connect("pipeline.db", check_same_thread=False)
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS results 
+                 (timestamp TEXT, original TEXT, analysis TEXT, sentiment TEXT)''')
+    conn.commit()
+    conn.close()
+
+init_db()  # Call directly - no before_first_request needed!
 
 def fetch_uuids(n=3):
     uuids = []
@@ -25,7 +34,7 @@ def analyze_with_ai(uuid):
         prompt = f"Provide 2-3 insights on this UUID. Classify sentiment as enthusiastic/critical/objective: {uuid}"
         response = model.generate_content(prompt)
         text = response.text.strip()
-        sentiment = "objective"  # Improve parsing later
+        sentiment = "objective"
         if any(word in text.lower() for word in ["excited", "great"]):
             sentiment = "enthusiastic"
         elif any(word in text.lower() for word in ["bad", "poor"]):
@@ -58,15 +67,6 @@ def notify(email):
     except:
         return False
 
-@app.before_first_request
-def setup_db():
-    conn = get_db()
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS results 
-                 (timestamp TEXT, original TEXT, analysis TEXT, sentiment TEXT)''')
-    conn.commit()
-    conn.close()
-
 @app.route("/pipeline", methods=["POST"])
 def pipeline():
     data = request.json
@@ -74,7 +74,6 @@ def pipeline():
     
     items = []
     errors = []
-    start_time = datetime.utcnow().isoformat() + 'Z'
     
     for uuid in fetch_uuids(3):
         try:
@@ -99,4 +98,4 @@ def pipeline():
     })
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
