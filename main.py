@@ -30,14 +30,14 @@ def fetch_uuids(n=3):
 
 def analyze_with_ai(uuid):
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        prompt = f"Provide 2-3 insights on this UUID. Classify sentiment as enthusiastic/critical/objective: {uuid}"
+        model = genai.GenerativeModel('gemini-2.0-flash-exp')  # Fixed!
+        prompt = f"Analyze this UUID (2-3 insights). Classify sentiment: enthusiastic/critical/objective: {uuid}"
         response = model.generate_content(prompt)
         text = response.text.strip()
         sentiment = "objective"
-        if any(word in text.lower() for word in ["excited", "great"]):
+        if any(word in text.lower() for word in ["excited", "great", "love"]):
             sentiment = "enthusiastic"
-        elif any(word in text.lower() for word in ["bad", "poor"]):
+        elif any(word in text.lower() for word in ["bad", "poor", "hate"]):
             sentiment = "critical"
         return {"analysis": text[:200], "sentiment": sentiment}
     except Exception as e:
@@ -99,3 +99,4 @@ def pipeline():
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
